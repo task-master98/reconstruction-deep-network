@@ -44,3 +44,8 @@ This repo used `Poetry` as the package manager. Please follow the steps to repro
 5. By default `poetry` uses the `.lock` file for installation if it exists. Once the environment is created, activate it by,
     `poetry shell`
 6. Run the scripts `hello_world.py` to test complete installation. It should not give any errors.
+
+## Development 
+1. Please do not commit to the `master` or `development` branch of the repo.
+2. When pushing to the repo, branch out of the `development`, create a `feature-branch` and submit a pull request to `development`.
+3. `master` will only be updated by merging from `development` and not in any other way.
