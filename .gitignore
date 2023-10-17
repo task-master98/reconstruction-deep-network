@@ -3,3 +3,9 @@
 *.npy
 *.DS_Store
 *.pyc
+*.txt
+*.json
+*.ply
+*.pfm
+*.house
+*.cam
