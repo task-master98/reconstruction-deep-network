@@ -9,3 +9,5 @@
 *.pfm
 *.house
 *.cam
+*.conf
+*.db
