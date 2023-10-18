@@ -2,7 +2,7 @@ import numpy as np
 from PIL import Image
 import open3d as o3d
 import matplotlib.pyplot as plt
-from load_dataset import NYUv2Dataset
+from reconstruction_deep_network.preprocessing.load_dataset import NYUv2Dataset
 import os
 
 #  Depth Camera params
@@ -51,7 +51,9 @@ def pcd_nested_loops(depth_image: np.ndarray):
     
     return np.array(pcd)
 
-def pcd_vectorized(depth_image: np.ndarray):
+def pcd_vectorized(depth_image: np.ndarray, camera_intrinsics: np.ndarray, camera_extrinsics: tuple):
+    fx, _, cx, _, fy, cy = camera_intrinsics[:6]
+    R, T = camera_extrinsics
     height, width = depth_image.shape
     
     # Create arrays for i and j values using meshgrid
@@ -59,13 +61,18 @@ def pcd_vectorized(depth_image: np.ndarray):
     
     # Compute x, y, and z using vectorized operations
     z = depth_image
-    x = (j - CX_DEPTH) * z / FX_DEPTH
-    y = (i - CY_DEPTH) * z / FY_DEPTH
-    
-    # Stack x, y, and z to form the point cloud
-    pcd = np.hstack((x.reshape(-1, 1), y.reshape(-1, 1), z.reshape(-1, 1)))
-    
-    return pcd
+    x = (j - cx) * z / fx
+    y = (i - cy) * z / fy
+
+    pcd = np.hstack((x.reshape(-1, 1), y.reshape(-1, 1), z.reshape(-1, 1))).T
+    rotated_point_cloud = np.dot(R, pcd)  # Apply rotation
+    translated_point_cloud = rotated_point_cloud + np.expand_dims(T, axis=1)  # Apply translation
+
+    # Transpose to have shape (height * width, 3)
+    point_cloud_reshaped = translated_point_cloud.T
+
+    return point_cloud_reshaped
+
 
 def pcd_color(depth_image: np.ndarray, rgb_image: np.ndarray):
     height, width = depth_image.shape
