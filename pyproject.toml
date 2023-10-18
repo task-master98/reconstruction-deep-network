@@ -5,6 +5,7 @@ description = "This package contains the scripts to develop, train and evaluate 
 authors = ["Ishaan Roy, Gursimar Singh, Abhishek Sharma"]
 license = "MIT"
 readme = "README.md"
+packages = [{include = "reconstruction_deep_network"}]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<=3.10.13"
