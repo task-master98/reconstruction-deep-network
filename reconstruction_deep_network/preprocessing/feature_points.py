@@ -17,8 +17,8 @@ class FeaturePointDetector:
         "minDistance": 20
     }
 
-    def __init__(self):
-        pass
+    def __init__(self, n_keypoints: int):
+        self.n_keypoints = n_keypoints
 
     @staticmethod
     def convert_to_grayscale(image: np.ndarray):
@@ -41,18 +41,19 @@ class FeaturePointDetector:
     
     def sift_corners(self, raw_image: np.ndarray):
         image = self.convert_to_grayscale(raw_image)
-        sift = cv2.xfeatures2d.SIFT_create()
+        sift = cv2.xfeatures2d.SIFT_create(self.n_keypoints)
         image = image.astype(np.uint8)
         kp, des = sift.detectAndCompute(image, None)
-        return kp
+        return kp, des
     
     def surf_corners(self, raw_image: np.ndarray):
         image = self.convert_to_grayscale(raw_image)
         image = image.astype(np.uint8)
-        fast = cv2.FastFeatureDetector.create()
+        fast = cv2.FastFeatureDetector.create(self.n_keypoints)
         fast.setNonmaxSuppression(False)
         kp = fast.detect(image, None)
-        return kp
+        des = fast.compute(image, kp)
+        return kp, des
     
 class VisualizeCorners:
 
