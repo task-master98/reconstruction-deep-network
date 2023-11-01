@@ -16,3 +16,6 @@
 *.weights.1
 *.names
 *.jxr
+*.sens
+*.mtl
+*.obj
