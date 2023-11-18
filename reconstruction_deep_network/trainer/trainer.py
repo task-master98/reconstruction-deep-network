@@ -12,17 +12,21 @@ import os
 import pytorch_lightning as pl
 import yaml
 
-import reconstruction_deep_network 
-from reconstruction_deep_network.models.base_model import MultiViewBaseModel
-from reconstruction_deep_network.models.inception import InceptionV3
-from reconstruction_deep_network.models.pretrained import (load_pretrained_model_img,
-                                                           load_pretrained_model_text)
-from reconstruction_deep_network.metrics.metrics import (calculate_activation_statistics,
-                                                         calculate_fretchet_inception_distance)
+try:
+    import reconstruction_deep_network 
+    from reconstruction_deep_network.models.base_model import MultiViewBaseModel
+    from reconstruction_deep_network.models.inception import InceptionV3
+    from reconstruction_deep_network.models.pretrained import (load_pretrained_model_img,
+                                                            load_pretrained_model_text)
+    from reconstruction_deep_network.metrics.metrics import (calculate_activation_statistics,
+                                                            calculate_fretchet_inception_distance)
 
 
-module_dir = reconstruction_deep_network.__path__[0]
-default_config_file = os.path.join(module_dir, "trainer", "trainer_config.yaml")
+    module_dir = reconstruction_deep_network.__path__[0]
+    default_config_file = os.path.join(module_dir, "trainer", "trainer_config.yaml")
+
+except ImportError:
+    from ..models.base_model import MultiViewBaseModel
 
 class ModelTrainer(pl.LightningModule):
 
