@@ -75,6 +75,8 @@ class CustomDataLoader(torch.utils.data.Dataset):
         
         self.image_dir = os.path.join(root_dir, self.config["image_dir"])
         self.prompts_dir = os.path.join(root_dir, self.config["prompts_dir"])
+        self.text_embeddings_dir = os.path.join(root_dir, self.config["text_embeddings_dir"])
+        self.img_embeddings_dir = os.path.join(root_dir, self.config["img_embeddings_dir"])
         self.vx = self.config["vx"]
         self.vy = self.config["vy"]
         self.rot = self.config["rot"]
@@ -91,15 +93,27 @@ class CustomDataLoader(torch.utils.data.Dataset):
         img_path = os.path.join(self.image_dir, img_name)
         img = cv2.imread(img_path)
         return img
-
-    # def load_skybox_images(self, img_name: str):
-    #     skybox_indices = list(range(self.skybox_indices))
-    #     images = []
-    #     for idx in skybox_indices:
-    #         img = self.load_skybox_image(scan_id, img_name, idx)
-    #         images.append(img)
+    
+    def load_text_encoding(self, img_path: str):
+        path_components = img_path.split("/")
+        scan_id, img_name = path_components[0], path_components[-1].split("_")[0]
+        file_name = os.path.join(self.text_embeddings_dir, scan_id, f"{img_name}.npz")
+        np_tensor = np.load(file_name, allow_pickle=True)
+        embedding_vec = []
+        for key in np_tensor.files:
+            data_dict = np_tensor[key].item()
+            embeddings = torch.from_numpy(data_dict["embeddings_1"])
+            embedding_vec.append(embeddings)
         
-    #     return images
+        torch_tsr = torch.stack(embedding_vec, dim=1)
+        return torch_tsr.numpy()
+    
+    def load_img_encoding(self, img_path: str):
+        path_components = img_path.split("/")
+        scan_id, img_name = path_components[0], path_components[-1].split("_")[0]
+        file_name = os.path.join(self.img_embeddings_dir, scan_id, f"{img_name}.npz")
+        np_tensor = np.load(file_name)["latent"]
+        return np_tensor
     
     def load_prompt(self, scan_id: str, img_name: str, rotation: int):
         file_name = f"{img_name}_{rotation}.txt"
@@ -134,6 +148,12 @@ class CustomDataLoader(torch.utils.data.Dataset):
         img_paths = self.metadata[idx]
         raw_images = [self.load_skybox_image(path) for path in img_paths]
         raw_images = [cv2.cvtColor(raw_img, cv2.COLOR_BGR2RGB) for raw_img in raw_images]
+
+        text_encoding = self.load_text_encoding(img_paths[0])
+        img_encoding = self.load_img_encoding(img_paths[0])
+
+        text_encoding = text_encoding.squeeze()
+        img_encoding = img_encoding.squeeze()
 
         imgs = []
         Rs = []
@@ -174,6 +194,8 @@ class CustomDataLoader(torch.utils.data.Dataset):
             "images_paths": img_paths,
             "images": images,
             "prompt": prompts,
+            "text_embedding": text_encoding,
+            "img_encoding": img_encoding,
             "R": R,
             "K": K
         }
