@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from ..modules.utils import get_x_2d
 from einops import rearrange
 
 def get_x_2d(width, height):
