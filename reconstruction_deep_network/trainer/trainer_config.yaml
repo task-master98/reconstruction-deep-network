@@ -1,8 +1,11 @@
 train:
   lr: 0.0002
+load_only_text: False
+load_only_image: False
+load_diffusion: True
 model:
   model_type: pano_generation
   guidance_scale: 9.
   model_id: stabilityai/stable-diffusion-2-base
-  single_image_ft: False
+  single_image_ft: True
   diffusion_timestep: 50
