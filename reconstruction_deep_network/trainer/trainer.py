@@ -37,17 +37,24 @@ class ModelTrainer(pl.LightningModule):
         self.max_epochs = self.config["train"]["max_epochs"] if "max_epochs" in self.config["train"] else 0
         self.diffusion_timestep = self.config["model"]["diffusion_timestep"]
         self.guidance_scale = self.config["model"]["guidance_scale"]
+        self.model_id = self.config["model"]["model_id"]
 
         # text embeddings
-        self.model_id = self.config["model"]["model_id"]
-        self.tokenizer = load_pretrained_model_text(self.model_id, "tokenizer")
-        self.text_encoder = load_pretrained_model_text(self.model_id, "text_encoder")
+        if self.config["load_only_text"]:
+            print("Loading text embedders...")
+            self.tokenizer = load_pretrained_model_text(self.model_id, "tokenizer")
+            self.text_encoder = load_pretrained_model_text(self.model_id, "text_encoder")
 
-        self.vae = load_pretrained_model_img(self.model_id, "vae")
-        self.scheduler = load_pretrained_model_img(self.model_id, "scheduler")
-        self.mv_base_model = MultiViewBaseModel()
-        self.inception_model = InceptionV3()
-        self.trainable_params = self.mv_base_model.trainable_parameters
+        if self.config["load_only_image"]:
+            print("Loading image encoders...")
+            self.vae = load_pretrained_model_img(self.model_id, "vae")
+        
+        if self.config["load_diffusion"]:
+            print("Loading diffusion models...")
+            self.scheduler = load_pretrained_model_img(self.model_id, "scheduler")
+            self.mv_base_model = MultiViewBaseModel()
+            self.inception_model = InceptionV3()
+            self.trainable_params = self.mv_base_model.trainable_parameters
 
         self.save_hyperparameters()
     
@@ -124,19 +131,19 @@ class ModelTrainer(pl.LightningModule):
 
         device = batch["images"].device
 
-        # encode text
-        prompt_embeddings = []
-        for prompt in batch["prompt"]:
-            embedding = self.encode_text(prompt, device)[0]
-            prompt_embeddings.append(embedding)
+        # # encode text
+        # prompt_embeddings = []
+        # for prompt in batch["prompt"]:
+        #     embedding = self.encode_text(prompt, device)[0]
+        #     prompt_embeddings.append(embedding)
         
-        prompt_embeddings = torch.stack(prompt_embeddings, dim = 1)
+        prompt_embeddings = batch["text_embedding"]
 
         # encode image
-        latents = self.encode_image(batch["images"], self.vae)
+        latents = batch["img_encoding"]
         
         # timestep
-        t = torch.randint(0, self.scheduler.num_train_steps, (latents.shape[0],), device = latents.device).long()
+        t = torch.randint(0, self.scheduler.num_train_timesteps, (latents.shape[0],), device = latents.device).long()
 
         # noise vector
         noise = torch.randn_like(latents)
@@ -242,7 +249,7 @@ class ModelTrainer(pl.LightningModule):
 
 if __name__ == "__main__":
     trainer = ModelTrainer()
-    images = torch.randn(64, 2, 512, 512, 3)
+    images = torch.randn(4, 2, 512, 512, 3)
     latents = trainer.encode_image(images, trainer.vae)
     print(latents.shape)
 
