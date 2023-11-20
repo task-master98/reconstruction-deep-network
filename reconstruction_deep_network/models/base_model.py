@@ -6,6 +6,7 @@ import os
 
 import reconstruction_deep_network
 from reconstruction_deep_network.models.pretrained import load_pretrained_model_img
+from reconstruction_deep_network.models.utils import *
 
 module_dir = reconstruction_deep_network.__path__[0]
 default_config_path = os.path.join(module_dir, "models", "model_config.yaml")
@@ -34,7 +35,7 @@ class MultiViewBaseModel(nn.Module):
         correspondences=get_correspondences(R, K, img_h, img_w)
 
         hidden_states = rearrange(latents, 'b m c h w -> (b m) c h w')
-        prompt_embd = rearrange(prompt_embd, 'b m l c -> (b m) l c')
+        prompt_embed = rearrange(prompt_embed, 'b m l c -> (b m) l c')
 
         timestep = timestep.reshape(-1)
         t_projection = self.unet.time_proj(timestep)
@@ -47,7 +48,7 @@ class MultiViewBaseModel(nn.Module):
 
         for i, downsample_block in enumerate(self.unet.down_blocks):
             for resnet in downsample_block.resnets:
-                hidden_states = resnet(hidden_states, emb)
+                hidden_states = resnet(hidden_states, t_embed)
                 down_block_res_samples += (hidden_states,)
             
             if downsample_block.downsamplers is not None:
@@ -59,13 +60,16 @@ class MultiViewBaseModel(nn.Module):
 
         for attn, resnet in zip(self.unet.mid_block.attentions, self.unet.mid_block.resnets[1:]):
             hidden_states = attn(
-                hidden_states, encoder_hidden_states=prompt_embd
+                hidden_states, encoder_hidden_states=prompt_embed
             ).sample
-            hidden_states = resnet(hidden_states, emb)
+            hidden_states = resnet(hidden_states, t_embed)
         
         h, w = hidden_states.shape[-2:]
 
         for i, upsample_block in enumerate(self.unet.up_blocks):
+            res_samples = down_block_res_samples[-len(upsample_block.resnets):]
+            down_block_res_samples = down_block_res_samples[:-len(
+                upsample_block.resnets)]
             for resnet in upsample_block.resnets:
                 res_hidden_states = res_samples[-1]
                 res_samples = res_samples[:-1]
