@@ -11,3 +11,4 @@
 *.cam
 *.conf
 *.db
+*.npz
