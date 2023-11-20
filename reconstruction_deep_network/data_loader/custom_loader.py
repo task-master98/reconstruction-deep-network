@@ -10,7 +10,7 @@ import reconstruction_deep_network
 
 module_dir = reconstruction_deep_network.__path__[0]
 root_dir = os.path.dirname(module_dir)
-
+default_config_file = os.path.join(module_dir, "data_loader", "data_loader_config.yaml")
 
 def get_K_R(FOV, THETA, PHI, height, width):
     f = 0.5 * width * 1 / np.tan(0.5 * FOV / 180.0 * np.pi)
@@ -60,14 +60,18 @@ def warp_img(fov, theta, phi, images, vx, vy):
 
 class CustomDataLoader(torch.utils.data.Dataset):
 
-    def __init__(self, config_file: str, mode: str):
+    def __init__(self, config_file: str=default_config_file, mode: str="train", debug: bool = True):
         with open(config_file, 'rb') as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
         
         self.mode = mode
         random.seed(self.config["seed"])
         metadata_file_path = os.path.join(module_dir, "data_loader", f"{mode}.npy")
-        self.metadata = np.load(metadata_file_path)
+        metadata = np.load(metadata_file_path)
+        str_arr = metadata.astype(str)
+        self.metadata = str_arr.tolist()
+        if debug:
+            self.metadata = self._limit_dataset("17DRP5sb8fy")
         
         self.image_dir = os.path.join(root_dir, self.config["image_dir"])
         self.prompts_dir = os.path.join(root_dir, self.config["prompts_dir"])
@@ -114,8 +118,20 @@ class CustomDataLoader(torch.utils.data.Dataset):
 
         return img_crop, K
     
+    def _limit_dataset(self, scan_id):
+        start_index, end_index = None, None
+        data_list = self.metadata
+
+        for i, sub_list in enumerate(data_list):
+            if sub_list[0].startswith(scan_id):
+                if start_index is None:
+                    start_index = i
+                end_index = i
+
+        return data_list[start_index:end_index+1]
+    
     def __getitem__(self, idx):
-        img_paths = self.metadata[idx].tolist()
+        img_paths = self.metadata[idx]
         raw_images = [self.load_skybox_image(path) for path in img_paths]
         raw_images = [cv2.cvtColor(raw_img, cv2.COLOR_BGR2RGB) for raw_img in raw_images]
 
@@ -149,7 +165,7 @@ class CustomDataLoader(torch.utils.data.Dataset):
         scan_id = img_paths[0].split("/")[0]
         img_name = img_paths[0].split("/")[-1].split("_")[0]
         for itr in range(num_views):
-            _degree = (init_degree+i*self.rot) % 360
+            _degree = (init_degree+itr*self.rot) % 360
             _degree = int(np.round(_degree/45)*45) % 360
             prompt = self.load_prompt(scan_id, img_name, _degree)
             prompts.append("This is one view of a scene. " + prompt)
