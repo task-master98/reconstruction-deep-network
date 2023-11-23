@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 import os
 import pytorch_lightning as pl
 import yaml
+from einops import rearrange
 
 import reconstruction_deep_network 
 from reconstruction_deep_network.models.base_model import MultiViewBaseModel
@@ -22,6 +23,7 @@ from reconstruction_deep_network.metrics.metrics import (calculate_activation_st
 
 
 module_dir = reconstruction_deep_network.__path__[0]
+root_dir = os.path.dirname(module_dir)
 default_config_file = os.path.join(module_dir, "trainer", "trainer_config.yaml")
 
 
@@ -57,6 +59,15 @@ class ModelTrainer(pl.LightningModule):
             self.trainable_params = self.mv_base_model.trainable_parameters
 
         self.save_hyperparameters()
+    
+    def load_null_embedding(self):
+        text_embeddings_dir = os.path.join(root_dir, self.config["dataset"]["text_embeddings_dir"])
+        null_prompt_dir = os.path.join(text_embeddings_dir, "null")
+        file_name = os.path.join(null_prompt_dir, "null.npz")
+        null_prompt = np.load(file_name, allow_pickle=True)
+        embeddings_dict = null_prompt["null"].item()
+        embedding = torch.from_numpy(embeddings_dict["embeddings_1"])
+        return embedding
     
     @torch.no_grad()
     def encode_text(self, text, device):
@@ -100,13 +111,12 @@ class ModelTrainer(pl.LightningModule):
         images = []
 
         for i in range(m):
-            image = vae.decode(latents[:, j]).sample
+            image = vae.decode(latents[:, i]).sample
             images.append(image)
         
         image = torch.stack(images, dim=1)
         image = (image / 2 + 0.5).clamp(0, 1)
-        image = image.cpu().permute(0, 1, 3, 4, 2).float().numpy()
-        image = (image * 255).round().astype('uint8')
+        image = image.cpu().permute(0, 1, 3, 4, 2).float()        
 
         return image
     
@@ -129,7 +139,7 @@ class ModelTrainer(pl.LightningModule):
             "R": batch["R"]
         }
 
-        device = batch["images"].device
+        device = batch["text_embedding"].device
 
         # # encode text
         # prompt_embeddings = []
@@ -188,11 +198,15 @@ class ModelTrainer(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         images_pred = self.inference(batch)
-        images = ((batch['images']/2+0.5)
-                          * 255).cpu().numpy().astype(np.uint8)
-        
-        val_loss = F.mse_loss(images, images_pred)
+        images = batch["images"]
         fid_score = self.fretchet_inception_distance(images, images_pred)
+
+        # images_pred = (images_pred.cpu().numpy() * 255).round().astype('uint8')
+
+        # images = ((batch['images']/2+0.5)
+        #                   * 255).cpu().numpy().astype(np.uint8)
+        
+        val_loss = F.mse_loss(images, images_pred)       
 
         self.log("val_loss", val_loss)
         self.log("fid_score", fid_score)
@@ -205,15 +219,17 @@ class ModelTrainer(pl.LightningModule):
         device = images.device
 
         latents = torch.randn(
-            bs, m, 4, h//8, w//8, device=device)
+            bs, m, 4, height//8, width//8, device=device)
         
-        prompt_embed = []
-        for prompt in batch["prompt"]:
-            embedding = self.encode_text(prompt, device)[0]
-            prompt_embed.append(embedding)
+        prompt_embed = batch["text_embedding"]
         
-        prompt_null = ""
-        null_embedding = self.encode_text(prompt_null, device)[0]
+        # prompt_embed = []
+        # for prompt in batch["prompt"]:
+        #     embedding = self.encode_text(prompt, device)[0]
+        #     prompt_embed.append(embedding)
+        
+        # prompt_null = ""
+        null_embedding = self.load_null_embedding()
         null_embedding = null_embedding[:, None].repeat(1, m, 1, 1)
         complete_embedding = torch.cat([null_embedding, prompt_embed])
 
@@ -223,7 +239,7 @@ class ModelTrainer(pl.LightningModule):
         for i, t in enumerate(timesteps):
             _timestep = torch.cat([t[None, None]]*m, dim=1)
 
-            noise_pred = self.forward_cls_free(
+            noise_pred = self.forward_class_free(
                 latents, _timestep, complete_embedding, batch, self.mv_base_model)
             
             latents = self.scheduler.step(
@@ -236,8 +252,17 @@ class ModelTrainer(pl.LightningModule):
     
     @torch.no_grad()
     def fretchet_inception_distance(self, images: np.ndarray, images_pred: np.ndarray):
+        images_pred = rearrange(images_pred, 'b m c h w -> (b m) c h w')
+        images = rearrange(images, 'b m c h w -> (b m) c h w')
+
+        images = images.permute(0, 3, 1, 2)
+        images_pred = images_pred.permute(0, 3, 1, 2)
+        
         real_img_incp_latent = self.inception_model(images)
         fake_img_incp_latent = self.inception_model(images_pred)
+
+        real_img_incp_latent = real_img_incp_latent.numpy()
+        fake_img_incp_latent = fake_img_incp_latent.numpy()
 
         mu1, sigma1 = calculate_activation_statistics(real_img_incp_latent)
         mu2, sigma2 = calculate_activation_statistics(fake_img_incp_latent)
@@ -249,9 +274,10 @@ class ModelTrainer(pl.LightningModule):
 
 if __name__ == "__main__":
     trainer = ModelTrainer()
-    images = torch.randn(4, 2, 512, 512, 3)
-    latents = trainer.encode_image(images, trainer.vae)
-    print(latents.shape)
+    null_embedding = trainer.load_null_embedding()
+    # images = torch.randn(4, 2, 512, 512, 3)
+    # latents = trainer.encode_image(images, trainer.vae)
+    # print(latents.shape)
 
 
 
