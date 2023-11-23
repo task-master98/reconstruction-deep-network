@@ -106,21 +106,29 @@ class CustomDataLoader(torch.utils.data.Dataset):
         path_components = img_path.split("/")
         scan_id, img_name = path_components[0], path_components[-1].split("_")[0]
         file_name = os.path.join(self.text_embeddings_dir, scan_id, f"{img_name}.npz")
-        np_tensor = np.load(file_name, allow_pickle=True)
-        embedding_vec = []
-        for key in np_tensor.files:
-            data_dict = np_tensor[key].item()
-            embeddings = torch.from_numpy(data_dict["embeddings_1"])
-            embedding_vec.append(embeddings)
+        try:
+            np_tensor = np.load(file_name, allow_pickle=True)
+            embedding_vec = []
+            for key in np_tensor.files:
+                data_dict = np_tensor[key].item()
+                embeddings = torch.from_numpy(data_dict["embeddings_1"])
+                embedding_vec.append(embeddings)
+            
+            torch_tsr = torch.stack(embedding_vec, dim=1).numpy()
+            
+        except Exception as e:
+            torch_tsr = None
         
-        torch_tsr = torch.stack(embedding_vec, dim=1)
-        return torch_tsr.numpy()
+        return torch_tsr
     
     def load_img_encoding(self, img_path: str):
         path_components = img_path.split("/")
         scan_id, img_name = path_components[0], path_components[-1].split("_")[0]
         file_name = os.path.join(self.img_embeddings_dir, scan_id, f"{img_name}.npz")
-        np_tensor = np.load(file_name)["latent"]
+        try:
+            np_tensor = np.load(file_name)["latent"]
+        except Exception as e:
+            np_tensor = None
         return np_tensor
     
     def load_prompt(self, scan_id: str, img_name: str, rotation: int):
@@ -177,8 +185,10 @@ class CustomDataLoader(torch.utils.data.Dataset):
         text_encoding = self.load_text_encoding(img_paths[0])
         img_encoding = self.load_img_encoding(img_paths[0])
 
-        text_encoding = text_encoding.squeeze()
-        img_encoding = img_encoding.squeeze()
+        if text_encoding is not None:
+            text_encoding = text_encoding.squeeze()
+        if img_encoding is not None:
+            img_encoding = img_encoding.squeeze()
 
         imgs = []
         Rs = []
@@ -213,7 +223,7 @@ class CustomDataLoader(torch.utils.data.Dataset):
             _degree = (init_degree+itr*self.rot) % 360
             _degree = int(np.round(_degree/45)*45) % 360
             prompt = self.load_prompt(scan_id, img_name, _degree)
-            prompts.append("This is one view of a scene. " + prompt)
+            prompts.append("This is one view of a scene. " + prompt) #TODO: current text embeddings do not include the prefix: "This is one view of a scene"
         
         return {
             "images_paths": img_paths,
