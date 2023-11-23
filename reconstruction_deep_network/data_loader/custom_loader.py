@@ -12,6 +12,14 @@ module_dir = reconstruction_deep_network.__path__[0]
 root_dir = os.path.dirname(module_dir)
 default_config_file = os.path.join(module_dir, "data_loader", "data_loader_config.yaml")
 
+shape_dictionary = {
+    "images": (8, 512, 512, 3),
+    "R": (8, 3, 3),
+    "K": (8, 3, 3),
+    "text_encoding": (8, 77, 1024),
+    "img_encoding": (8, 4, 64, 64)
+}
+
 def get_K_R(FOV, THETA, PHI, height, width):
     f = 0.5 * width * 1 / np.tan(0.5 * FOV / 180.0 * np.pi)
     cx = (width - 1) / 2.0
@@ -143,6 +151,23 @@ class CustomDataLoader(torch.utils.data.Dataset):
                 end_index = i
 
         return data_list[start_index:end_index+1]
+    
+    # def __getitem__(self, idx):
+    #     idx = np.random.randint(0, 1000)
+    #     np.random.seed(idx)
+    #     R = np.random.rand(*shape_dictionary["R"]).astype(np.float32)
+    #     K = np.random.rand(*shape_dictionary["K"]).astype(np.float32)
+    #     text_encoding = np.random.rand(*shape_dictionary["text_encoding"]).astype(np.float32)
+    #     img_encoding = np.random.rand(*shape_dictionary["img_encoding"]).astype(np.float32)
+    #     images = np.random.rand(*shape_dictionary["images"]).astype(np.float32)
+
+    #     return {
+    #         "images": images,
+    #         "text_embedding": text_encoding,
+    #         "img_encoding": img_encoding,
+    #         "R": R,
+    #         "K": K
+    #     }
     
     def __getitem__(self, idx):
         img_paths = self.metadata[idx]
