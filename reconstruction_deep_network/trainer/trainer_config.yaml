@@ -1,11 +1,25 @@
+dataset:
+  image_dir: "data/v1/scans"
+  prompts_dir: "data/v1/prompts"
+  text_embeddings_dir: "data/v1/text_embeddings"
+  img_embeddings_dir: "data/v1/image_latents"
+  data_type: "skybox_images"
+  seed: 0
+  skybox_indices: 6
+  vx: [-90, 270, 0, 90, 180, -90]
+  vy: [90, 0, 0, 0, 0, -90]
+  fov: 90
+  rot: 45
+  resolution: 512
+  crop_size: 512
 train:
   lr: 0.0002
 load_only_text: False
-load_only_image: False
+load_only_image: True
 load_diffusion: True
 model:
   model_type: pano_generation
   guidance_scale: 9.
   model_id: stabilityai/stable-diffusion-2-base
   single_image_ft: True
-  diffusion_timestep: 50
+  diffusion_timestep: 2 # set to low number in debug mode
