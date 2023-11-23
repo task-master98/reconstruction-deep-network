@@ -32,7 +32,7 @@ class MultiViewBaseModel(nn.Module):
 
         b, m, c, h, w = latents.shape
         img_h, img_w = h*8, w*8
-        correspondences=get_correspondences(R, K, img_h, img_w)
+        # correspondences=get_correspondences(R, K, img_h, img_w)
 
         hidden_states = rearrange(latents, 'b m c h w -> (b m) c h w')
         prompt_embed = rearrange(prompt_embed, 'b m l c -> (b m) l c')
