@@ -107,19 +107,10 @@ class CustomDataLoader(torch.utils.data.Dataset):
         scan_id, img_name = path_components[0], path_components[-1].split("_")[0]
         file_name = os.path.join(self.text_embeddings_dir, scan_id, f"{img_name}.npz")
         try:
-            np_tensor = np.load(file_name, allow_pickle=True)
-            embedding_vec = []
-            for key in np_tensor.files:
-                data_dict = np_tensor[key].item()
-                embeddings = torch.from_numpy(data_dict["embeddings_1"])
-                embedding_vec.append(embeddings)
-            
-            torch_tsr = torch.stack(embedding_vec, dim=1).numpy()
-            
+            np_tensor = np.load(file_name)["latent"]
         except Exception as e:
-            torch_tsr = None
-        
-        return torch_tsr
+            np_tensor = None 
+        return np_tensor
     
     def load_img_encoding(self, img_path: str):
         path_components = img_path.split("/")
