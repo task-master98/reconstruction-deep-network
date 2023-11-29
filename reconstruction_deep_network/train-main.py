@@ -15,6 +15,8 @@ def parse_args():
 
     parser = ArgumentParser()
     parser.add_argument("--main_config_path", type = str, dest = "main_config_path")
+    parser.add_argument("--train_metadata", type = str, dest = "train_metadata")
+    parser.add_argument("--val_metadata", type = str, dest = "val_metadata")
     parser.add_argument("--num_workers", type = int, dest = "num_workers")
     parser.add_argument("--exp_name", dest = "exp_name", type = str)
     parser.add_argument("--batch_size", dest = "batch_size", type = int)
@@ -36,8 +38,8 @@ def main(args):
     config["train"]["max_epochs"] = args.max_epochs
     config["train"]["batch_size"] = args.batch_size
 
-    train_dataset = CustomDataLoader(mode = "train")
-    val_dataset = CustomDataLoader(mode = "val")
+    train_dataset = CustomDataLoader(mode = "train", debug = False, metadata_filename = args.train_metadata)
+    val_dataset = CustomDataLoader(mode = "val", debug = False, metadata_filename = args.val_metadata)
 
     train_loader = torch.utils.data.DataLoader(
                     train_dataset,
