@@ -68,13 +68,14 @@ def warp_img(fov, theta, phi, images, vx, vy):
 
 class CustomDataLoader(torch.utils.data.Dataset):
 
-    def __init__(self, config_file: str=default_config_file, mode: str="train", debug: bool = True):
+    def __init__(self, config_file: str=default_config_file, mode: str="train", debug: bool = True,
+                 metadata_filename: str="ir-20231129-train-split"):
         with open(config_file, 'rb') as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
         
         self.mode = mode
         random.seed(self.config["seed"])
-        metadata_file_path = os.path.join(module_dir, "data_loader", f"{mode}.npy")
+        metadata_file_path = os.path.join(module_dir, "data_loader", f"{metadata_filename}.npy")
         metadata = np.load(metadata_file_path)
         str_arr = metadata.astype(str)
         self.metadata = str_arr.tolist()
