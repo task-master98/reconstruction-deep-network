@@ -196,8 +196,9 @@ class ModelTrainer(pl.LightningModule):
 
         return noise_pred
     
+    @torch.no_grad()
     def validation_step(self, batch, batch_idx):        
-        images = batch["images"]
+        images = batch["images"].detach().cpu()
         images_pred = self.inference(batch).to(images.device)
 #         print(f"Images: {images.device}")
 #         print(f"Prediction: {images_pred.device}")
