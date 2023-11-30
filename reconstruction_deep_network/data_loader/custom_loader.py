@@ -69,7 +69,7 @@ def warp_img(fov, theta, phi, images, vx, vy):
 class CustomDataLoader(torch.utils.data.Dataset):
 
     def __init__(self, config_file: str=default_config_file, mode: str="train", debug: bool = True,
-                 metadata_filename: str="ir-20231129-train-split"):
+                 metadata_filename: str="ir-20231129-train-split", num_views: int = 8):
         with open(config_file, 'rb') as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
         
@@ -94,6 +94,7 @@ class CustomDataLoader(torch.utils.data.Dataset):
         self.crop_size = self.config["crop_size"]
         self.data_type = self.config["data_type"]
         self.skybox_indices = self.config["skybox_indices"]
+        self.num_views = num_views
     
     def __len__(self):
         return len(self.metadata)
@@ -179,8 +180,10 @@ class CustomDataLoader(torch.utils.data.Dataset):
 
         if text_encoding is not None:
             text_encoding = text_encoding.squeeze()
+            text_encoding = text_encoding[:self.num_views]
         if img_encoding is not None:
             img_encoding = img_encoding.squeeze()
+            img_encoding = img_encoding[:self.num_views]
 
         imgs = []
         Rs = []
@@ -204,9 +207,13 @@ class CustomDataLoader(torch.utils.data.Dataset):
             imgs.append(img)
         
         images = (np.stack(imgs).astype(np.float32)/127.5)-1
+        images = images[:self.num_views]
 
         K = np.stack([K]*len(Rs)).astype(np.float32)
         R = np.stack(Rs).astype(np.float32)
+
+        K = K[:self.num_views]
+        R = R[:self.num_views]
 
         prompts = []
         scan_id = img_paths[0].split("/")[0]
@@ -216,6 +223,8 @@ class CustomDataLoader(torch.utils.data.Dataset):
             _degree = int(np.round(_degree/45)*45) % 360
             prompt = self.load_prompt(scan_id, img_name, _degree)
             prompts.append("This is one view of a scene. " + prompt) #TODO: current text embeddings do not include the prefix: "This is one view of a scene"
+        
+        prompts = prompts[:self.num_views]
         
         return {
             "images_paths": img_paths,
@@ -232,7 +241,7 @@ class CustomDataLoader(torch.utils.data.Dataset):
 if __name__ == "__main__":
 
     config_file = os.path.join(module_dir, "data_loader", "data_loader_config.yaml")
-    data_loader = CustomDataLoader(config_file, "train")
+    data_loader = CustomDataLoader(config_file, "train", True, "train", 4)
 
     item = data_loader[0]
     
