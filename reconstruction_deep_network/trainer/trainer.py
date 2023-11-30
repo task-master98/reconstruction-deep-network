@@ -55,7 +55,7 @@ class ModelTrainer(pl.LightningModule):
             print("Loading diffusion models...")
             self.scheduler = load_pretrained_model_img(self.model_id, "scheduler")
             self.mv_base_model = MultiViewBaseModel()
-            self.inception_model = InceptionV3()
+#             self.inception_model = InceptionV3()
             self.trainable_params = self.mv_base_model.trainable_parameters
 
         self.save_hyperparameters()
@@ -196,10 +196,12 @@ class ModelTrainer(pl.LightningModule):
 
         return noise_pred
     
-    def validation_step(self, batch, batch_idx):
-        images_pred = self.inference(batch)
+    def validation_step(self, batch, batch_idx):        
         images = batch["images"]
-        fid_score = self.fretchet_inception_distance(images, images_pred)
+        images_pred = self.inference(batch).to(images.device)
+#         print(f"Images: {images.device}")
+#         print(f"Prediction: {images_pred.device}")
+#         fid_score = self.fretchet_inception_distance(images, images_pred)
 
         # images_pred = (images_pred.cpu().numpy() * 255).round().astype('uint8')
 
@@ -209,8 +211,8 @@ class ModelTrainer(pl.LightningModule):
         val_loss = F.mse_loss(images, images_pred)       
 
         self.log("val_loss", val_loss)
-        self.log("fid_score", fid_score)
-        return val_loss, fid_score
+#         self.log("fid_score", fid_score)
+        return val_loss
     
     @torch.no_grad()
     def inference(self, batch):
@@ -230,7 +232,7 @@ class ModelTrainer(pl.LightningModule):
         
         # prompt_null = ""
         null_embedding = self.load_null_embedding()
-        null_embedding = null_embedding[:, None].repeat(1, m, 1, 1)
+        null_embedding = null_embedding[:, None].repeat(1, m, 1, 1).to(device)        
         complete_embedding = torch.cat([null_embedding, prompt_embed])
 
         self.scheduler.set_timesteps(self.diffusion_timestep, device = device)
@@ -261,8 +263,8 @@ class ModelTrainer(pl.LightningModule):
         real_img_incp_latent = self.inception_model(images)
         fake_img_incp_latent = self.inception_model(images_pred)
 
-        real_img_incp_latent = real_img_incp_latent.numpy()
-        fake_img_incp_latent = fake_img_incp_latent.numpy()
+        real_img_incp_latent = real_img_incp_latent.cpu().numpy()
+        fake_img_incp_latent = fake_img_incp_latent.cpu().numpy()
 
         mu1, sigma1 = calculate_activation_statistics(real_img_incp_latent)
         mu2, sigma2 = calculate_activation_statistics(fake_img_incp_latent)

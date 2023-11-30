@@ -14,9 +14,9 @@ dataset:
   crop_size: 512
 train:
   lr: 0.0002
-load_only_text: True
-load_only_image: False
-load_diffusion: False
+load_only_text: False
+load_only_image: True
+load_diffusion: True
 model:
   model_type: pano_generation
   guidance_scale: 9.
