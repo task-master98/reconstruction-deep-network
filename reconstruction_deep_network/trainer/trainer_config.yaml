@@ -14,7 +14,8 @@ dataset:
   crop_size: 512
 train:
   lr: 0.0002
-load_only_text: False
+  max_epochs: 10
+load_only_text: True
 load_only_image: True
 load_diffusion: True
 model:
@@ -22,4 +23,4 @@ model:
   guidance_scale: 9.
   model_id: stabilityai/stable-diffusion-2-base
   single_image_ft: True
-  diffusion_timestep: 2 # set to low number in debug mode
+  diffusion_timestep: 500 # set to low number in debug mode

@@ -12,6 +12,7 @@ import os
 import pytorch_lightning as pl
 import yaml
 from einops import rearrange
+from tqdm import tqdm
 
 import reconstruction_deep_network 
 from reconstruction_deep_network.models.base_model import MultiViewBaseModel
@@ -50,14 +51,16 @@ class ModelTrainer(pl.LightningModule):
         if self.config["load_only_image"]:
             print("Loading image encoders...")
             self.vae = load_pretrained_model_img(self.model_id, "vae")
+            for param in self.vae.parameters():
+                param.requires_grad = False
         
         if self.config["load_diffusion"]:
             print("Loading diffusion models...")
             self.scheduler = load_pretrained_model_img(self.model_id, "scheduler")
             self.mv_base_model = MultiViewBaseModel()
 #             self.inception_model = InceptionV3()
-            self.trainable_params = self.mv_base_model.trainable_parameters
-
+            self.trainable_params = self.mv_base_model.trainable_parameters        
+        
         self.save_hyperparameters()
     
     def load_null_embedding(self):
@@ -140,6 +143,7 @@ class ModelTrainer(pl.LightningModule):
         }
 
         device = batch["text_embedding"].device
+#         print(torch.cuda.mem_get_info(device=device)[0] / 1024**2)
 
         # # encode text
         # prompt_embeddings = []
@@ -196,9 +200,9 @@ class ModelTrainer(pl.LightningModule):
 
         return noise_pred
     
-    @torch.no_grad()
-    def validation_step(self, batch, batch_idx):        
-        images = batch["images"].detach().cpu()
+    def validation_step(self, batch, batch_idx):
+#         print(f"Validating...")
+        images = batch["images"]
         images_pred = self.inference(batch).to(images.device)
 #         print(f"Images: {images.device}")
 #         print(f"Prediction: {images_pred.device}")
@@ -213,7 +217,7 @@ class ModelTrainer(pl.LightningModule):
 
         self.log("val_loss", val_loss)
 #         self.log("fid_score", fid_score)
-        return val_loss
+        return val_loss 
     
     @torch.no_grad()
     def inference(self, batch):
@@ -239,7 +243,7 @@ class ModelTrainer(pl.LightningModule):
         self.scheduler.set_timesteps(self.diffusion_timestep, device = device)
         timesteps = self.scheduler.timesteps
         
-        for i, t in enumerate(timesteps):
+        for i, t in enumerate(tqdm(timesteps)):
             _timestep = torch.cat([t[None, None]]*m, dim=1)
 
             noise_pred = self.forward_class_free(
