@@ -80,7 +80,7 @@ class MultiViewBaseModel(nn.Module):
                     hidden_states = resnet(hidden_states, t_embed)
                     down_block_res_samples += (hidden_states,)
             
-            if m > 1:
+            if m > 1 and not self.single_image_ft:
                 hidden_states = self.cp_blocks_encoder[i](
                     hidden_states, correspondences, img_h, img_w, R, K, m)
 
@@ -92,7 +92,7 @@ class MultiViewBaseModel(nn.Module):
         
         hidden_states = self.unet.mid_block.resnets[0](hidden_states, t_embed)
 
-        if m > 1:
+        if m > 1 and not self.single_image_ft:
             hidden_states = self.cp_blocks_mid(
                 hidden_states, correspondences, img_h, img_w, R, K, m)
 
@@ -127,7 +127,7 @@ class MultiViewBaseModel(nn.Module):
                         [hidden_states, res_hidden_states], dim=1)
                     hidden_states = resnet(hidden_states, t_embed)
             
-            if m > 1:
+            if m > 1 and not self.single_image_ft:
                 hidden_states = self.cp_blocks_decoder[i](
                     hidden_states,correspondences, img_h, img_w, R, K, m)
         
