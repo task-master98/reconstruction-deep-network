@@ -1,5 +1,5 @@
 model_type: pano_generation
 guidance_scale: 9.
 model_id: stabilityai/stable-diffusion-2-base
-single_image_ft: True
+single_image_ft: False
 diff_timestep: 50
